@@ -1,0 +1,68 @@
+import random
+import string
+import time
+
+import requests
+import schedule
+
+
+def generate_random_site_name(length=8):
+    characters = string.ascii_lowercase + string.digits
+    return ''.join(random.choice(characters) for _ in range(length))
+
+def is_site_name_available(site_name, access_token):
+    api_url = f'https://api.netlify.com/api/v1/sites?name={site_name}'
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json',
+    }
+
+    try:
+        response = requests.get(api_url, headers=headers)
+        response.raise_for_status()
+        return len(response.json()) == 0
+    except requests.exceptions.RequestException as e:
+        print(f"Error checking Netlify site name availability: {e}")
+        return False
+
+def update_netlify_site_name(site_id, new_name, access_token):
+    api_url = f'https://api.netlify.com/api/v1/sites/{site_id}'
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json',
+    }
+    data = {
+        'name': new_name,
+    }
+
+    try:
+        response = requests.patch(api_url, headers=headers, json=data)
+        response.raise_for_status()
+        return True
+    except requests.exceptions.RequestException as e:
+        print(f"Error updating Netlify site name: {e}")
+        return False
+
+def job():
+    # Replace these values with your actual Netlify site ID and API token
+    site_id = 'fc9465ec-297a-4679-83a8-a9b1a42ab433'
+    api_token = 'nfp_J4XwFzjUJQ4w1NZcfscfkoixEG1KfkhLf91a'
+
+    new_name = generate_random_site_name()
+
+    while not is_site_name_available(new_name, api_token):
+        new_name = generate_random_site_name()
+
+    if update_netlify_site_name(site_id, new_name, api_token):
+        print(f"Netlify site name updated successfully to: {new_name}")
+        print("Job completed successfully.")
+    else:
+        print("Failed to update Netlify site name.")
+
+# Schedule the job to run every 30 minutes
+schedule.every(1).minutes.do(job)
+
+# Run the scheduler in a loop
+while True:
+    schedule.run_pending()
+    time.sleep(1)
